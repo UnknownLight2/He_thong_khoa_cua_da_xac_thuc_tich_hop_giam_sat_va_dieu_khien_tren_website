@@ -1,0 +1,45 @@
+{
+  "rules": {
+    "status": {
+      ".read": true,
+      "doorLocked": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+      },
+      "autoLockAt": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+      },
+      "autoLockSec": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+      },
+      "devices": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+      },
+      "lastUpdate": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+      },
+      "openRequest": {
+        ".write": "auth != null",
+        ".validate": "!newData.exists() || newData.isNumber()"
+      }
+    },
+    "cards": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+    },
+    "config": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+    },
+    "logs": {
+      ".read": true,
+      ".write": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'"
+    },
+    "roles": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).val() === 'admin'",
+      ".write": false,
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
