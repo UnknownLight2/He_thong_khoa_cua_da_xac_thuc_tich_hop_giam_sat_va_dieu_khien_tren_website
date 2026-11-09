@@ -1,7 +1,4 @@
-/*
-  HỆ THỐNG KHÓA CỬA THÔNG MINH (RFID HOẶC PIN 4 SỐ) + IoT (Firebase)
-  BẢN HOÀN CHỈNH TỔNG HỢP: Bàn phím đảo chân + Offline Mode + Mở dứt khoát + Tắt bíp phạt
-*/
+
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -9,7 +6,7 @@
 #include <Firebase_ESP_Client.h>
 #include <addons/TokenHelper.h>
 #include <SPI.h>
-#define MFRC522_SPICLOCK 1000000u   // hạ tốc độ SPI xuống 1 MHz cho ổn định khi dây dài/có nhiễu
+#define MFRC522_SPICLOCK 1000000u   
 #include <MFRC522.h>
 #include <Keypad.h>
 #include <Wire.h>
@@ -35,9 +32,6 @@
 #define MAX_CARDS         20
 
 // ---- CÔNG TẮC CHẨN ĐOÁN ----
-// 1 = chạy bình thường (WiFi + Firebase).
-// 0 = TẮT HẲN WiFi/Firebase để thử riêng phần cứng (RFID, keypad, servo, LCD).
-// Nếu đặt 0 mà quẹt thẻ chạy được => nguyên nhân là nguồn điện bị sụt khi bật WiFi.
 #define USE_NETWORK 1
 
 // ================= CHÂN CẮM + ĐỐI TƯỢNG =================
@@ -55,7 +49,6 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 const byte KEYPAD_ROWS = 4, KEYPAD_COLS = 3;
 char keys[KEYPAD_ROWS][KEYPAD_COLS] = { {'1','2','3'}, {'4','5','6'}, {'7','8','9'}, {'*','0','#'} };
 
-// Cấu hình chân ma trận phím đã được đảo chéo để bấm đúng 100% phím
 byte rowPins[KEYPAD_ROWS] = {14, 25, 26, 33}; 
 byte colPins[KEYPAD_COLS] = {15, 16, 17};
 
@@ -523,7 +516,7 @@ void doUnlock(bool fromWeb, const char* method) {
   wrongAttempts = 0;
   lockLevel = 0;
   lcdLine(0, "MO KHOA");
-  // Cập nhật 1: THANH CONG in hoa
+
   lcdLine(1, "THANH CONG"); 
   unlockedAt = millis();
   uiResetAt = 0;
@@ -643,20 +636,14 @@ void applyPendingCards() {
 }
 
 // ================= RFID: KHỞI TẠO + TỰ KIỂM TRA =================
-// Lý do: RC522 rất dễ bị "treo âm thầm" khi nguồn 3.3V sụt áp (WiFi phát sóng, servo quay...).
-// Khi đó chip tự reset, ANTEN BỊ TẮT nhưng thanh ghi phiên bản vẫn đọc được 0x92/0x91 nên kiểm tra
-// phiên bản lúc khởi động KHÔNG phát hiện ra -> không báo lỗi mà quẹt thẻ cũng không ăn.
 void rfidInit() {
   rfid.PCD_Init();                                   // reset + bật anten
-  // Sau PCD_Init, thư viện thả chân RST ở chế độ INPUT (thả nổi). Nhiễu có thể kéo RST xuống thấp
-  // làm RC522 tự reset giữa chừng (anten tắt, thanh ghi về mặc định). Giữ RST ở mức cao cố định.
   pinMode(RFID_RST_PIN, OUTPUT);
   digitalWrite(RFID_RST_PIN, HIGH);
   rfid.PCD_SetAntennaGain(MFRC522::RxGain_max);      // tăng độ nhạy thu để đọc thẻ ổn định hơn
   delay(4);
 }
 
-// 0 = OK | 1 = anten đang tắt (khởi tạo lại là sửa được) | 2 = chip KHÔNG phản hồi qua SPI (dây/nguồn/chân)
 byte rfidState() {
   byte ver = rfid.PCD_ReadRegister(MFRC522::VersionReg);
   if (ver == 0x00 || ver == 0xFF) return 2;
@@ -693,17 +680,12 @@ void handleHardware() {
         beepPlay(PAT_OK, 3);
         uiResetAt = millis() + 2500;
       } else {
-        // Cập nhật 2: THE KHONG HOP LE in hoa
         wrongAlert("THE KHONG HOP LE", "The la (UID: " + unkUid + ")", "RFID"); 
       }
     }
     return;
   }
 
-  // Luôn thử quét: cờ rfidPresent chỉ để hiển thị.
-  // Hay gặp khi thẻ chưa vào sát/tín hiệu yếu: lệnh dò thấy thẻ nhưng bước chọn thẻ (đọc UID) thất bại.
-  // Lúc đó thẻ bị kẹt ở trạng thái READY và KHÔNG trả lời các lệnh dò tiếp theo => phải nhấc thẻ ra
-  // quẹt lại mới được (cảm giác "không nhạy"). Tắt/bật anten ~5 ms để reset thẻ, lần dò sau đọc lại ngay.
   bool cardRead = false;
   if (rfid.PICC_IsNewCardPresent()) {
     cardRead = rfid.PICC_ReadCardSerial();
@@ -782,7 +764,6 @@ void handleHardware() {
       lcdLine(1, "PIN: " + stars);
       if (enteredPIN.length() == PIN_LENGTH) {          
         if (enteredPIN == masterPIN) doUnlock(false, "PIN");
-        // Cập nhật 3: Đổi SAI MA PIN thành SAI MAT KHAU
         else wrongAlert("SAI MAT KHAU", "Sai PIN", "PIN"); 
       }
     }
@@ -814,7 +795,7 @@ void setup() {
 
   SPI.begin();
   rfidInit();
-  rfidPresent = (rfidState() != 2);                  // chỉ coi là "lỗi" khi chip không phản hồi SPI
+  rfidPresent = (rfidState() != 2);                
   rfidPrintState("Luc khoi dong");
 
   ESP32PWM::allocateTimer(0);              
@@ -840,8 +821,7 @@ void setup() {
     Serial.print("Dia chi IP: ");
     Serial.println(WiFi.localIP());
   }
-  // Giảm công suất phát WiFi (mặc định 19.5 dBm hút dòng rất lớn, dễ làm sụt 3.3V và treo RC522).
-  // 11 dBm đủ dùng khi ESP32 ở gần router; nếu WiFi yếu thì tăng lên WIFI_POWER_15dBm.
+
   WiFi.setTxPower(WIFI_POWER_11dBm);
 #else
   Serial.println("[DIAG] USE_NETWORK = 0: da tat WiFi/Firebase, chi chay phan cung (che do Offline)");
@@ -867,7 +847,6 @@ void loop() {
 
   if (lockUntil && now < lockUntil && now >= lockTickAt) {
     lockTickAt = now + 1000;
-    // Cập nhật 4: Đã bỏ dấu ! ở cuối HE THONG KHOA
     lcdLine(0, "HE THONG KHOA"); 
     lcdLine(1, "Thu lai sau: " + String((lockUntil - now + 999) / 1000) + "s");
     // beepPlay(PAT_TICK, 1); // Đã tắt hoàn toàn tiếng "bíp" đếm ngược
@@ -892,9 +871,6 @@ void loop() {
   }
   if (idle && !uiResetAt && shownNetStage != netStage) showIdlePrompt();
 
-  // Cứ 0.3 giây kiểm tra RC522 (chỉ 2 lệnh đọc thanh ghi, rất nhẹ). Mất anten/treo thì khởi tạo lại NGAY,
-  // nên nếu RC522 bị reset giữa chừng thì chỉ gián đoạn chưa tới nửa giây. Chỉ báo "RFID lỗi" lên LCD
-  // khi chip không phản hồi liên tiếp ~3 giây.
   static unsigned long lastRfidHealth = 0, rfidRecoveries = 0;
   static byte rfidFail = 0;
   static bool rfidWasBad = false;

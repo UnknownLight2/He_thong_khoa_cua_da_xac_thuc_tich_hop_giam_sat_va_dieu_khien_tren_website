@@ -21,11 +21,6 @@
 
   /roles/<uid>              -> "admin" hoặc "user"  (uid lấy từ Firebase Authentication)
 
-  LƯU Ý BẢO MẬT: phải cấu hình Firebase Security Rules để:
-    - Ai cũng đọc được /status, /logs (public read theo thiết kế Guest xem được)
-    - Chỉ user đã đăng nhập mới ghi được /status/doorLocked
-    - Chỉ admin (kiểm tra qua /roles/<uid>) mới ghi được /cards, /config/masterPin
-  Xem ví dụ rules ở cuối file README đi kèm.
 */
 
 const db = firebase.database();
@@ -171,9 +166,6 @@ function isDeviceOnline() {
   return (serverNow() - lu) < HEARTBEAT_STALE_MS;
 }
 
-// Vẽ lại "Kết nối thiết bị", "Cập nhật gần nhất" và các badge thiết bị.
-// Được gọi MỖI GIÂY (không chỉ khi Firebase có dữ liệu mới): nếu ESP32 ngừng gửi nhịp tim thì
-// không có sự kiện nào từ Firebase, nên phải tự tính theo đồng hồ mới thấy "Offline" và số giây tăng dần.
 function renderConnection() {
   const connEl = document.getElementById("statConnection");
   const lastEl = document.getElementById("statLastUpdate");
@@ -292,7 +284,6 @@ function setBadge(id, ok) {
 }
 
 // Nút chỉ có MỘT việc: ghi "yêu cầu mở cửa" (giờ server). Việc mở, đếm giờ và tự khóa
-// đều do ESP32 làm; web không ghi doorLocked và không có lệnh khóa. Không tự ghi log ở đây:
 // log "mở thành công" do chính ESP32 ghi sau khi đã quay servo.
 document.getElementById("doorBtn").addEventListener("click", () => {
   if (currentRole === "guest" || statusData.doorLocked === false) return;
