@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Door Security - Khóa cửa thông minh</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header>
+    <button id="hamburger" aria-label="Menu">&#9776;</button>
+    <h1 id="pageTitle">System</h1>
+    <div id="userbox">
+      <a id="loginLink" href="#" onclick="openLoginModal();return false;">Đăng nhập</a>
+      <span id="userInfo" class="hidden"></span>
+    </div>
+  </header>
+
+  <!-- ===== SIDEBAR + OVERLAY ===== -->
+  <div class="overlay" id="overlay"></div>
+  <nav id="sidebar">
+    <div class="menu-item active" data-tab="system">System</div>
+    <div class="menu-item hidden" id="menuUser" data-tab="user">User</div>
+    <!-- Đã thêm class hidden và id="menuLogs" vào dòng bên dưới -->
+    <div class="menu-item hidden" id="menuLogs" data-tab="logs">Logs</div>
+  </nav>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main>
+
+    <!-- TAB: SYSTEM -->
+    <section class="tab active" id="tab-system">
+
+      <!-- Dải tổng quan nhanh -->
+      <div class="overview-strip">
+        <div class="stat-card">
+          <div class="stat-icon">&#128225;</div>
+          <div class="stat-value" id="statConnection">--</div>
+          <div class="stat-label">Kết nối thiết bị</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#9201;</div>
+          <div class="stat-value" id="statLastUpdate">--</div>
+          <div class="stat-label">Cập nhật gần nhất</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#9888;</div>
+          <div class="stat-value" id="statAlerts">--</div>
+          <div class="stat-label">Cảnh báo gần đây</div>
+        </div>
+      </div>
+
+      <div class="system-grid">
+
+        <div class="card">
+          <div class="card-title">Tình trạng thiết bị</div>
+          <div class="row"><span>Bàn phím (Keypad)</span><span id="dv_keypad" class="badge">--</span></div>
+          <div class="row"><span>Màn hình LCD</span><span id="dv_lcd" class="badge">--</span></div>
+          <div class="row"><span>Còi báo (Buzzer)</span><span id="dv_buzzer" class="badge">--</span></div>
+          <div class="row"><span>Đầu đọc thẻ RFID</span><span id="dv_rfid" class="badge">--</span></div>
+        </div>
+
+        <div class="card door-card">
+          <div class="card-title">Điều khiển cửa</div>
+          <div class="door-visual">
+            <div class="door-icon" id="doorIcon">&#128274;</div>
+            <div id="doorStatusText" class="door-status-text">Đang khóa</div>
+          </div>
+          <button id="doorBtn" class="btn door-btn" disabled>Mở cửa</button>
+          <p class="muted" id="doorHint">Đăng nhập để mở cửa từ xa</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB: USER (chỉ Admin thấy) -->
+    <section class="tab" id="tab-user">
+      <div class="card">
+        <div class="card-title">Tài khoản hệ thống</div>
+        <p class="muted">Quản lý qua Firebase Authentication. Gán vai trò (role) cho từng tài khoản tại node <code>/roles/&lt;uid&gt;</code> trong Firebase Realtime Database.</p>
+        <table id="userTable">
+          <thead><tr><th>Email</th><th>Vai trò</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Danh sách thẻ RFID hợp lệ</div>
+        <table id="cardTable">
+          <thead><tr><th>UID</th><th>Chủ thẻ</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="scan-box">
+          <div class="row">
+            <span>Đăng ký thẻ mới</span>
+            <button id="regBtn" class="btn" onclick="toggleRegister()">Quét thẻ để đăng ký</button>
+          </div>
+          <p class="muted" id="scanStatus">Bấm nút rồi đặt thẻ lên đầu đọc RFID, UID sẽ tự hiện vào ô bên dưới.</p>
+        </div>
+        <div class="form-row">
+          <input type="text" id="newCardUid" placeholder="UID thẻ (tự điền khi quét, hoặc nhập tay)">
+          <input type="text" id="newCardOwner" placeholder="Tên chủ thẻ">
+          <button class="btn" onclick="addCard()">+ Thêm thẻ</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Mã PIN mở cửa</div>
+        <div class="row">
+          <span>Mã PIN hiện tại</span>
+          <span><b id="currentPin" class="pin-display">----</b>
+            <a href="#" id="pinToggle" onclick="togglePinVisible();return false;">Ẩn</a></span>
+        </div>
+        <div class="form-row">
+          <input type="text" id="newPin" placeholder="Mã PIN mới (4 chữ số)" maxlength="4" inputmode="numeric" pattern="[0-9]*">
+          <button class="btn" onclick="changePin()">Cập nhật PIN</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: LOGS -->
+    <section class="tab" id="tab-logs">
+      <div class="card">
+        <div class="card-title">Lịch sử ra vào</div>
+        <div class="form-row">
+          <select id="logFilter">
+            <option value="all">Tất cả</option>
+            <option value="success">Chỉ thành công</option>
+            <option value="fail">Chỉ thất bại</option>
+          </select>
+          <button id="clearLogsBtn" class="btn danger hidden" onclick="clearLogs()">Xóa toàn bộ log</button>
+        </div>
+        <table id="logTable">
+          <thead><tr><th>Thời gian</th><th>Phương thức</th><th>Kết quả</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== MODAL: ĐĂNG NHẬP ===== -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <h2>Đăng nhập</h2>
+      <input type="email" id="loginEmail" placeholder="Email">
+      <input type="password" id="loginPassword" placeholder="Mật khẩu">
+      <div id="loginError" class="error hidden"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="doLogin()">Đăng nhập</button>
+        <button class="btn secondary" onclick="closeLoginModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SDK FIREBASE (phiên bản compat - dễ dùng cho JS thuần) ===== -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
